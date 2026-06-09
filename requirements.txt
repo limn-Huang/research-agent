@@ -1,0 +1,23 @@
+# LLM SDK(GLM 通过 OpenAI 兼容接口调用)
+openai>=1.40.0
+zhipuai>=2.1.0
+
+# LangGraph 生态
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+
+# RAG
+chromadb>=0.5.0
+
+# 论文处理(Day 2 用)
+arxiv>=2.1.0
+pymupdf>=1.24.0
+requests>=2.31.0
+
+# 工具
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+tenacity>=8.0.0
+tqdm>=4.66.0
