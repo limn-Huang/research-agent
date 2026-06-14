@@ -1,13 +1,5 @@
 """
 LangGraph 主图定义。
-
-这是整个项目的"大脑"——决定 5 个 agent 节点怎么连接、怎么流转。
-
-当前架构(Day 1 简化版,线性流):
-    START → Planner → Retrieval → Reading → Comparison → Reporter → END
-
-后续(Day 4 完整版):
-    引入 conditional edge,根据状态决定是否需要补充检索等。
 """
 
 import logging
@@ -19,7 +11,7 @@ from src.agents.retrieval import retrieval_node
 from src.agents.reading import reading_node
 from src.agents.comparison import comparison_node
 from src.agents.reporter import reporter_node
-
+from src.memory.summary_memory import get_summary_memory, should_compress
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +37,7 @@ def build_graph():
     workflow.add_node("retrieval", retrieval_node)
     workflow.add_node("reading", reading_node)
     workflow.add_node("comparison", comparison_node)
+    workflow.add_node("memory", memory_node)
     workflow.add_node("reporter", reporter_node)
     
     # === 定义边(数据流)===
@@ -53,7 +46,8 @@ def build_graph():
     workflow.add_edge("planner", "retrieval")
     workflow.add_edge("retrieval", "reading")
     workflow.add_edge("reading", "comparison")
-    workflow.add_edge("comparison", "reporter")
+    workflow.add_edge("comparison", "memory")
+    workflow.add_edge("memory", "reporter")
     workflow.add_edge("reporter", END)
     
     # 编译图
@@ -61,6 +55,47 @@ def build_graph():
     logger.info("Graph compiled successfully")
     return app
 
+def memory_node(state: ResearchState) -> dict:
+    """
+    Memory 节点:条件触发 paper_summaries 压缩。
+    
+    触发条件(should_compress 判断):
+    - 首次:paper_summaries 数 >= 10
+    - 增量:新增 >= 5
+    
+    无论是否触发,都返回 dict(LangGraph 要求节点必须 return)。
+    """
+    if not should_compress(state):
+        logger.info(
+            f"[Memory] Skip compression "
+            f"({len(state.get('paper_summaries', {}))} papers, threshold not met)"
+        )
+        return {}
+    
+    paper_summaries = state["paper_summaries"]
+    logger.info(f"[Memory] Triggering compression for {len(paper_summaries)} papers")
+    
+    memory = get_summary_memory()
+    
+    # 判断是首次压缩还是增量合并
+    existing = state.get("summary_memory")
+    if existing is None or existing.get("covered_count", 0) == 0:
+        result = memory.compress(paper_summaries)
+    else:
+        # 增量合并:只压缩新增的 paper
+        already_covered_ids = set()  # 注意:实际工程里需要追踪哪些已被压缩
+        new_papers = {
+            pid: s for pid, s in paper_summaries.items()
+            if pid not in already_covered_ids
+        }
+        result = memory.merge(existing, new_papers)
+    
+    logger.info(
+        f"[Memory] ✅ Compressed {result['covered_count']} papers to "
+        f"{len(result['summary'])} chars (method={result['compression_method']})"
+    )
+    
+    return {"summary_memory": result}
 
 if __name__ == "__main__":
     # 单独测试 graph 构建

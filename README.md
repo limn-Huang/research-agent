@@ -39,6 +39,24 @@ Cascaded Retrieval:Dense embedding 召回 Top 15 → CrossEncoder 精排 Top 5
 `experiments/rag_benchmark.py` 自建对照实验,量化各组件 trade-off。
 完整报告:[`experiments/rag_benchmark_report.md`](experiments/rag_benchmark_report.md)
 
+## 长上下文压缩(SummaryMemory)
+
+为应对大规模论文集合(30+ 篇)导致的 LangGraph state 膨胀问题,
+设计 SummaryMemory 模块对 ResearchState 中的 paper_summaries 做 LLM 压缩。
+
+### 触发逻辑
+- **首次压缩**:paper_summaries 数 >= 10 篇
+- **增量合并**:新增 >= 5 篇后,与已有 summary 合并
+
+### 实测压缩效果
+- 5 篇模拟论文(~2000 字)→ 284 字摘要(压缩比 ~7x)
+- 严格保留 3 段式结构:方法图景 / 核心发现 / 关键 limitation
+
+### 与项目 1 的复用
+SummaryMemory 模式同时落地在 OpenHands 项目(压缩 EventLog)和本项目
+(压缩 LangGraph state),验证了模式的**领域无关性**。两个项目都用
+"agent_state / dict 持久化 + 触发 hook + LLM 压缩 + 失败 fallback" 同一架构。
+
 ## 架构
 用户 query
 ↓

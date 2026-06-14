@@ -1,8 +1,5 @@
 """
 Reporter Agent:综合所有信息生成最终报告。
-
-Day 3 升级:加入 RAG —— 用 query 从 VectorStore 检索最相关的论文片段,
-让报告的事实陈述有具体论文依据。
 """
 
 import logging
@@ -44,6 +41,23 @@ REPORTER_USER_PROMPT_TEMPLATE = """研究问题:{query}
 def reporter_node(state: ResearchState) -> dict:
     logger.info("[Reporter] Generating final report")
 
+    summary_memory = state.get("summary_memory")
+    if summary_memory and summary_memory.get("summary"):
+        # 用压缩 summary 替代完整 paper_summaries 描述
+        compressed_context = (
+            f"\n## 论文集合的压缩概览(覆盖 {summary_memory['covered_count']} 篇)\n"
+            f"{summary_memory['summary']}\n"
+        )
+        logger.info(
+            f"[Reporter] Using compressed summary "
+            f"(method={summary_memory['compression_method']}, "
+            f"{len(summary_memory['summary'])} chars vs "
+            f"~{len(state.get('paper_summaries', {})) * 500} chars raw)"
+        )
+    else:
+        compressed_context = ""
+        logger.info("[Reporter] No summary memory, using raw paper_summaries")
+    
     # === Step 1: === RAG 检索:chunk 级检索(对比旧版的"整篇匹配")===
     # 升级:从 search() 改为 search_chunks(),提升检索精度
     # 报告生成需要"多角度信息",所以 n_results 调到 5(原来 3 个整篇,现在 5 个段落)
@@ -83,7 +97,7 @@ def reporter_node(state: ResearchState) -> dict:
         n_papers=len(state["papers"]),
         comparison_table=state["method_comparison_table"],
         rag_context=rag_context or "无额外上下文",
-    )
+    ) + compressed_context 
 
     try:
         response = llm.chat(

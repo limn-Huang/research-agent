@@ -3,7 +3,7 @@ Retrieval Agent - 真实数据源版本。
 
 设计要点:
 1. 通过 BaseRetriever 解耦,可以无缝切换数据源
-2. 支持多源并行检索(Day 7 用)
+2. 支持多源并行检索
 3. 失败时返回空列表,让后续节点能 graceful degrade
 """
 
