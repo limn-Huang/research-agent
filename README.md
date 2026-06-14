@@ -10,6 +10,35 @@
 - **结构化提取**:LLM 严格 JSON 输出 + 容错降级
 - **跨语言检索**:Planner 自动将中文 query 翻译为英文检索关键词
 
+## RAG 工程
+
+### Chunker(Strategy Pattern)
+3 种切分策略可切换,统一抽象基类 `BaseChunker`:
+
+| 策略 | 适用场景 |
+|---|---|
+| `FixedSizeChunker` | 极短文本、benchmark baseline |
+| `SlidingWindowChunker` | 通用 RAG(512 token + 80 overlap) |
+| `SectionAwareChunker` | 学术论文 ⭐(识别 Abstract/Method/Result 等 7 个 section) |
+
+```python
+from src.rag.chunkers import get_chunker
+chunker = get_chunker("section_aware", chunk_size=512, overlap=80)
+chunks = chunker.chunk(paper_text, {"paper_id": "..."})
+```
+
+### CrossEncoder Rerank
+Cascaded Retrieval:Dense embedding 召回 Top 15 → CrossEncoder 精排 Top 5
+
+- **模型**:`BAAI/bge-reranker-base`(280MB,中英双语)
+- **实测效果**:在多关键词 query("attention complexity")上,
+  Method chunk 的 rerank_score 从 dense 时代的 0.521 提升到 **0.945**,
+  修正了 dense embedding 被高频词主导的问题
+
+### Benchmark
+`experiments/rag_benchmark.py` 自建对照实验,量化各组件 trade-off。
+完整报告:[`experiments/rag_benchmark_report.md`](experiments/rag_benchmark_report.md)
+
 ## 架构
 用户 query
 ↓

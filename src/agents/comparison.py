@@ -68,14 +68,25 @@ def comparison_node(state: ResearchState) -> dict:
             "step_count": state["step_count"] + 1,
         }
 
-    # === Step 1: 把论文存入 VectorStore ===
+    # === Step 1: 把论文 chunk 化后存入 VectorStore ===
+    # 升级:从"1 paper = 1 vector"改为"1 paper = N chunks"
+    # 默认用 section_aware 策略,适合学术论文结构
     try:
         vs = get_vector_store()
-        added = vs.add_papers(papers, paper_summaries)
-        logger.info(f"[Comparison] Added {added} papers to VectorStore")
+        added_chunks = vs.add_papers_with_chunks(
+            papers=papers,
+            summaries=paper_summaries,
+            chunker_strategy="section_aware",
+            chunk_size=512,
+            overlap=80,
+        )
+        logger.info(
+            f"[Comparison] Added {added_chunks} chunks to VectorStore "
+            f"(from {len(papers)} papers, section_aware strategy)"
+        )
     except Exception as e:
         logger.warning(f"[Comparison] VectorStore failed (non-critical): {e}")
-
+        
     # === Step 2: 调 LLM 生成对比 ===
     llm = get_llm()
     papers_text = build_papers_text(paper_summaries, papers)

@@ -37,9 +37,8 @@ def main():
     
     # 2. 准备初始 state
     # 在 main() 函数里
-    query = "llm 模型"  # 英文 query,arXiv 检索效果更好
-    # 中文 query 我们 Day 3 在 Planner 里加"翻译为英文检索词"的能力
-    initial_state = create_initial_state(query=query, max_papers=3)  # 先用 3 篇,省钱省时间
+    query = "多智能体协作框架"  # 英文 query,arXiv 检索效果更好
+    initial_state = create_initial_state(query=query, max_papers=7) 
     logger.info(f"Query: {query}")
     
     # 3. 调用 graph
@@ -60,7 +59,7 @@ def main():
     
     # 5. 保存报告
     Path("output").mkdir(exist_ok=True)
-    output_path = Path("output") / "report_day1.md"
+    output_path = Path("output") / "report_3.md"
     output_path.write_text(result["final_report"], encoding="utf-8")
     logger.info(f"\n✅ Report saved to: {output_path}")
 

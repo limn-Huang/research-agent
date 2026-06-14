@@ -79,6 +79,11 @@ class ResearchState(TypedDict):
     messages: Annotated[List[str], add]         # 节点的日志消息(累积)
     error: Optional[str]                        # 出错信息(任意节点可以写)
     step_count: int                             # 已执行的步骤数(防死循环)
+    
+    #Chunker配置
+    chunker_strategy:str    #"fixed"/"sliding"/"section_aware"
+    chunk_size:int          # 每个 chunk 的文本长度(字符数)默认 512
+    overlap:int             # 相邻 chunk 之间的重叠字符数  默认 80
 
 
 def create_initial_state(query: str, max_papers: int = 10) -> ResearchState:

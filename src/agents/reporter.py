@@ -44,19 +44,34 @@ REPORTER_USER_PROMPT_TEMPLATE = """研究问题:{query}
 def reporter_node(state: ResearchState) -> dict:
     logger.info("[Reporter] Generating final report")
 
-    # === RAG 检索:找最相关的论文片段 ===
+    # === Step 1: === RAG 检索:chunk 级检索(对比旧版的"整篇匹配")===
+    # 升级:从 search() 改为 search_chunks(),提升检索精度
+    # 报告生成需要"多角度信息",所以 n_results 调到 5(原来 3 个整篇,现在 5 个段落)
     rag_context = ""
     try:
         vs = get_vector_store()
         if vs.collection.count() > 0:
             search_query = state.get("search_query_en") or state["query"]
-            hits = vs.search(search_query, n_results=3)
+            
+            # ⭐ 用 search_chunks 而非 search:返回段落级匹配
+            hits = vs.search_chunks_with_rerank(
+                search_query,
+                n_results=5,
+                rerank_top_n=15,  # 召回 15,精排到 5
+                enable_rerank=True,
+            )
+            
             if hits:
+                # 在 context 中标注来源,便于 LLM 引用
                 rag_context = "\n\n".join(
-                    f"[{h['title'][:60]}]\n{h['document'][:300]}"
+                    f"[来源:{h['title'][:50]} | section={h['section']} | score={h['score']:.2f}]\n"
+                    f"{h['text'][:400]}"
                     for h in hits
                 )
-                logger.info(f"[Reporter] RAG retrieved {len(hits)} relevant chunks")
+                logger.info(
+                    f"[Reporter] RAG retrieved {len(hits)} chunks "
+                    f"(sections: {[h['section'] for h in hits]})"
+                )
     except Exception as e:
         logger.warning(f"[Reporter] RAG failed (non-critical): {e}")
         rag_context = "RAG 检索不可用"
